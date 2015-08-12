@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
 
-: ${TBONECDN_S3?"Set TBONECDN_S3 to TBone's CDN S3 bucket"}
-
 set -e
 rm -rf _cdn/
 mkdir -p _cdn/
@@ -33,9 +31,14 @@ for ref in `git ls-remote origin | grep ".*refs/[^p]" | sed "s/.*\///" | sort -r
         cp dist/tbone.js ../_cdn/tbone-$ref.js
         cp dist/tbone.min.js ../_cdn/tbone-$ref.min.js
         cp dist/tbone.min.js.map ../_cdn/tbone-$ref.min.js.map
-        cp dist/tbone_legacy.js ../_cdn/tbone_legacy-$ref.js
-        cp dist/tbone_legacy.min.js ../_cdn/tbone_legacy-$ref.min.js
-        cp dist/tbone_legacy.min.js.map ../_cdn/tbone_legacy-$ref.min.js.map
+        # Not all versions have all the _legacy files, and that's fine:
+        if [ -f "dist/tbone_legacy.js" ]; then
+            cp dist/tbone_legacy.js ../_cdn/tbone_legacy-$ref.js
+        fi
+        if [ -f "dist/tbone_legacy.min.js" ]; then
+            cp dist/tbone_legacy.min.js ../_cdn/tbone_legacy-$ref.min.js
+            cp dist/tbone_legacy.min.js.map ../_cdn/tbone_legacy-$ref.min.js.map
+        fi
     else
         # echo "Using dist/ build..."
         cp dist/tbone.js ../_cdn/tbone-$ref.js
@@ -59,20 +62,8 @@ done
 git checkout -q master
 cd ..
 
-cd _cdn
-for name in `ls *.js | sed s/\.js//`; do
-    # for the non-gzip-encoded version to work right,
-    # we shouldn't set Content-encoding: gzip on them.
-    # cp $name.js $name.raw.js
-    gzip $name.js
-    mv $name.js.gz $name.js
-done
-cd ..
-
-echo "Syncing to s3://$TBONECDN_S3/..."
-
+echo "Syncing _cdn/..."
 aws s3 sync \
-    --cache-control "max-age=600" \
-    --content-encoding "gzip" \
+    --cache-control "max-age=3600" \
     --acl "public-read" \
-    _cdn/ s3://tbonejscdn/
+    _cdn/ s3://cdn.tbonejs.org/
