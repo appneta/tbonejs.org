@@ -9,3 +9,4 @@ node_modules
 /docs
 /_asset_bundler_cache
 .gutignore
+/test
